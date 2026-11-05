@@ -508,8 +508,9 @@ with tab_pred:
         if expl["status"] != "ok":
             st.caption("No AI explanation is available, so a summary built from the prediction is read instead.")
         shown = tr["text"] if translated else base_text
-        st.markdown(f"<div class='ll-card'><h4>{lang if translated else 'English'} text</h4>"
-                    f"<div class='ll-explain'>{render_answer(shown)}</div></div>", unsafe_allow_html=True)
+        if translated or expl["status"] != "ok":      # the English explanation is already shown above
+            st.markdown(f"<div class='ll-card'><h4>{lang if translated else 'English'} text</h4>"
+                        f"<div class='ll-explain'>{render_answer(shown)}</div></div>", unsafe_allow_html=True)
         components.html(speak_html(shown, LANGUAGES[lang] if translated else "en-IN"), height=56)
 
         # ---------------- Chat with the decision ----------------
