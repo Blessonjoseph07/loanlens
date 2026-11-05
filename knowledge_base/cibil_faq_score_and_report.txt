@@ -1,0 +1,31 @@
+SOURCE: https://www.cibil.com/faq/understand-your-credit-score-and-report
+TITLE: FAQs – Understand Your Credit Score and Report | CIBIL
+
+What is a CIBIL Score and Report?
+CIBIL Score is a three-digit numeric summary of your credit history. The score is derived using the credit history found in the CIBIL Report (also known as CIR i.e Credit Information Report). A CIR is an individual’s credit payment history across loan types and credit institutions over a period of time. A CIR does not contain details of your savings, investments or fixed deposits.
+How do I check details of my account number and member name mentioned in my CIBIL Report?
+To check account number or member details you can purchase your CIBIL Score and Report. This report will contain complete details of your credit history across various lenders and products, enabling you to check all the aforesaid information.
+How do I read my CIBIL Report?
+A CIBIL Report has detailed information on the credit you have availed, such as home loan, automobile loan, credit card, personal loan, overdraft facilities. Below are the key sections of the CIBIL Report
+CIBIL Score
+Your CIBIL score, calculated based on your credit behavior as reflected in the ‘Accounts’ and ‘Enquiries’ section of your CIR, ranges between 300-900. A score above 700 is generally considered good.
+Personal information
+Contains your name, date of birth, gender and identification numbers such as PAN, passport number, voter’s number
+Contact Information
+Address and telephone numbers are provided in this section, up to 4 addresses are present
+Employment Information
+Monthly or annual income details as reported by the Members (Banks and Financial institutions).
+Account information
+This section contains the details of your credit facilities including name of lenders, type of credit facilities (home, auto, personal, overdraft, etc.), account numbers, ownership details, date opened, date of last payment, loan amount, current balance and a month on month record of your payments.
+Enquiry Information
+Every time you apply for a loan or credit card, the respective Bank or financial institution accesses your CIR. The system makes a note of this in your credit history and the same is referred as “Enquiries”
+I have an add-on credit card. Why are the details reflecting on my account when I am not liable to pay?
+It is important to note that even if primary card holder is responsible for payments for charges incurred on both the primary and add-on credit card. Any default made in payments shall reflect in CIR of both the primary and add-on card holder.
+Why are the loans for which I am a guarantor showing up on my report?
+Banks and Financial institutions ask for a guarantor for certain loans as a means of security for the loan amount they provide. A guarantor on any form of loan is equally responsible to ensure the repayment of the loan. Hence, the guarantor provides a guarantee to the lender that he will honor the obligation in case the principal applicant is unable to do so. Any default on the payment of the loan by the principal applicant, will affect your Credit Score as well.
+I don’t recognize the loan accounts mentioned against my name in the report. Can I get more details?
+You can refer to the Account Information section of your CIBIL Report for more details about your loan accounts.
+I have closed all my accounts on time with the bank and have NOC. Why is it still showing as outstanding on my report?
+If you have received a confirmation from the credit institution about the submission of revised data to CIBIL, you can check its updated status on the CIBIL website.
+What is information security?
+At TransUnion CIBIL, we aim to provide Information for Good. With our consumers’ data at the centre of our business, we strive to secure your information and ensure it is protected. However, we need your cooperation in this constant fight against fraud. Have you ever realised how easy it is to fall prey to credit fraud and identity theft? Despite the advances in the digital world, there are innumerable ways in which you can expose your confidential information online and put yourself at risk.
