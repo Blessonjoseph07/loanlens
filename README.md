@@ -101,6 +101,10 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   returns the cheapest plans that reach a 60% approval probability, ranked on a shared effort scale.
   It also reports the best probability reachable *without* touching CIBIL. "Try this plan" loads a plan
   into the form; "Explain plan 1 with AI" retrieves RBI/CIBIL passages and asks llama3.2 for cited steps.
+- **Credit-score time machine (Plan tab)** - `loanlens/timeline.py` applies chosen habits (on-time payments,
+  low card use, a missed payment, ...) and a monthly saving one month at a time, re-scores the applicant at
+  every step, and charts when the approval probability crosses 50% and 60%. The CIBIL point values are
+  illustrative assumptions with diminishing returns near 900, and are editable in the app.
 
 ## Tests
 

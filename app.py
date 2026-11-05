@@ -5,7 +5,8 @@ Run with:  streamlit run app.py
 Layout
   Sidebar : applicant form (11 fields, enforced ranges) + sample applicants
   Tab 1   : Prediction - result card, SHAP chart, AI explanation, sources, What if?
-  Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection
+  Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection,
+            and the credit-score time machine (habits simulated month by month)
   Tab 3   : Model performance - metrics table, confusion matrix, feature importance
   Tab 4   : About - problem, dataset, ML -> GenAI flow diagram, limitations
 """
@@ -25,6 +26,7 @@ from loanlens.data import (FEATURES, LABELS, RANGES, RUPEE_FIELDS, ValidationErr
                            format_inr, format_value)
 from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, explain_plan, plan_query
 from loanlens.predict import Predictor
+from loanlens.timeline import HABITS, first_month, simulate
 from loanlens.rag import NO_SOURCE_MSG, Retriever, THRESHOLD, build_query, load_embedder
 
 ROOT = Path(__file__).resolve().parent
@@ -515,6 +517,58 @@ with tab_plan:
                                                    "explanation": explain_plan(pred["applicant"], cf, srcs)}
             if st.session_state.get("cf_expl"):
                 explanation_block(st.session_state["cf_expl"], "plan")
+
+        # ---------------- Credit-score time machine ----------------
+        st.markdown("#### Credit-score time machine")
+        st.caption("Pick habits and a monthly saving; the CIBIL score and bank savings move forward one month at "
+                   "a time and the model re-scores the applicant at every step. The point values are "
+                   "illustrative assumptions (the real CIBIL formula is not public) - edit them below.")
+        t1, t2, t3 = st.columns([2.2, 1, 1], vertical_alignment="bottom")
+        labels = {h.label: h.key for h in HABITS}
+        chosen = t1.multiselect("Habits", list(labels), default=list(labels)[:3], key="tm_habits")
+        months = t2.slider("Months", 6, 48, 24, key="tm_months")
+        saving = t3.number_input("Monthly saving (₹)", 0, 10_000_000, 0, step=10_000, key="tm_saving")
+        with st.expander("Assumptions (CIBIL points)"):
+            edited = st.data_editor(
+                pd.DataFrame({"Habit": [h.label for h in HABITS], "Points": [h.points for h in HABITS],
+                              "When": ["every month" if h.month is None else f"once, month {h.month}"
+                                       for h in HABITS]}),
+                disabled=["Habit", "When"], hide_index=True, width="stretch", key="tm_points")
+            st.caption("Positive effects shrink as the score nears 900 (diminishing returns).")
+        pts = {h.key: float(v) for h, v in zip(HABITS, edited["Points"])}
+        sim = simulate(predictor.model, pred["applicant"], [labels[c] for c in chosen], months, int(saving), pts)
+        m50, m60 = first_month(sim, 0.5), first_month(sim, 0.6)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=sim["month"], y=sim["probability"] * 100, name="Approval probability",
+                                 mode="lines+markers", line=dict(color=ACCENT, width=3), marker=dict(size=5),
+                                 hovertemplate="Month %{x}: %{y:.1f}%<extra></extra>"))
+        fig.add_trace(go.Scatter(x=sim["month"], y=sim["cibil_score"], name="CIBIL score", yaxis="y2",
+                                 mode="lines", line=dict(color="#9CA3AF", dash="dot"),
+                                 hovertemplate="Month %{x}: CIBIL %{y}<extra></extra>"))
+        for level, colour in ((50, AMBER), (60, GREEN)):
+            fig.add_hline(y=level, line=dict(color=colour, dash="dash", width=1),
+                          annotation_text=f"{level}%", annotation_position="top right")
+        if m60 is not None and m60 > 0:
+            fig.add_vline(x=m60, line=dict(color=GREEN, width=1))
+        fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=40), plot_bgcolor="white",
+                          paper_bgcolor="rgba(0,0,0,0)", legend=dict(orientation="h", y=1.1),
+                          xaxis=dict(title="Month", gridcolor="#F3F4F6"),
+                          yaxis=dict(title="Approval probability (%)", range=[0, 102], gridcolor="#F3F4F6"),
+                          yaxis2=dict(title="CIBIL score", overlaying="y", side="right", range=[300, 900],
+                                      tickvals=[300, 450, 550, 650, 750, 900], showgrid=False))
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="time_machine")
+        end = sim.iloc[-1]
+        if m60 == 0:
+            msg = "Already a clear approval today."
+        elif m60 is not None:
+            row = sim[sim["month"] == m60].iloc[0]
+            msg = (f"Crosses a **clear approval (60%) in month {m60}**, when the simulated CIBIL score reaches "
+                   f"**{int(row['cibil_score'])}**.")
+        else:
+            msg = (f"Does **not** reach 60% within {months} months (ends at {end['probability']:.1%}, "
+                   f"CIBIL {int(end['cibil_score'])}). Try more months or other habits.")
+        st.markdown(msg)
 
 with tab_perf:
     if not METRICS:
