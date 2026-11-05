@@ -1,0 +1,17 @@
+# Tested together on Windows 11, Python 3.14.4 (works on 3.11+).
+# CPU-only PyTorch keeps the download small:
+#   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+numpy==2.5.4
+pandas==3.1.1
+scikit-learn==1.9.1
+joblib==1.6.0
+matplotlib==3.11.2
+shap==0.54.1
+torch==2.15.0
+sentence-transformers==6.2.0
+transformers==5.22.1
+faiss-cpu==1.15.1
+ollama==0.6.3
+streamlit==1.66.1
+plotly==7.1.0
+pytest==9.2.0

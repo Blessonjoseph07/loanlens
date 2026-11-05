@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Local tool settings
+.claude/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+~$*.docx
+
+# Page renders used only to check the report layout
+report/assets/page_*.png
+
+# Local write-ups (not part of the project)
+report/
