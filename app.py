@@ -4,7 +4,7 @@ Run with:  streamlit run app.py
 
 Layout
   Sidebar : applicant form (11 fields, enforced ranges) + sample applicants
-  Tab 1   : Prediction - result card, how-sure meter, SHAP chart, AI explanation, sources, listen/translate,
+  Tab 1   : Prediction - result card, how-sure meter, PDF download, SHAP chart, AI explanation, sources, listen/translate,
             follow-up chat, What if?
   Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection,
             and the credit-score time machine (habits simulated month by month)
@@ -31,6 +31,7 @@ from loanlens.data import (FEATURES, LABELS, RANGES, RUPEE_FIELDS, ValidationErr
 from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, chat_followup, ollama_reachable, translate, explain_plan, plan_query
 from loanlens.predict import Predictor
 from loanlens.voice import LANGUAGES, plain_summary, speak_html
+from loanlens.pdf_report import build_pdf
 from loanlens.uncertainty import FamiliarityChecker, assess
 from loanlens.timeline import HABITS, first_month, simulate
 from loanlens.rag import NO_SOURCE_MSG, Retriever, THRESHOLD, build_query, load_embedder
@@ -293,7 +294,7 @@ if st.session_state.pop("run_predict", False):
         result, error = run_analysis(applicant)
     st.session_state["result"], st.session_state["error"] = result, error
     st.session_state.pop("whatif", None)
-    for k in ("cf", "cf_expl", "chat", "translations", "tr_notice"):      # plans and chat belong to the previous applicant
+    for k in ("cf", "cf_expl", "chat", "translations", "tr_notice", "pdf"):      # plans and chat belong to the previous applicant
         st.session_state.pop(k, None)
     if result:   # reset the What-if sliders to this applicant
         st.session_state["wi_cibil"] = result["prediction"]["applicant"]["cibil_score"]
@@ -472,6 +473,18 @@ with tab_pred:
               (unusual above {sure['threshold']:.2f})<br>Why: {html.escape(why)}.
               {f'<ul style="margin:.4rem 0 0 1.1rem;padding:0">{unusual}</ul>' if unusual else ''}</div>
             </div>""", unsafe_allow_html=True)
+
+        # ---------------- PDF summary ----------------
+        if "pdf" not in st.session_state:
+            if "cf" not in st.session_state:
+                st.session_state["cf"] = what_would_it_take(predictor.model, pred["applicant"])
+            st.session_state["pdf"], _ = safe(lambda: build_pdf(result, sure, st.session_state["cf"]))
+        if st.session_state["pdf"]:
+            st.download_button("⬇ Download PDF summary", st.session_state["pdf"],
+                               file_name=f"loanlens_{pred['label'].lower()}_{pred['applicant']['cibil_score']}.pdf",
+                               mime="application/pdf",
+                               help="One page: result, certainty, applicant, SHAP chart, explanation, sources "
+                                    "and the cheapest plan.")
 
         st.markdown("#### Top 3 factors for this applicant")
         c3, c4 = st.columns([1.6, 1], gap="large")

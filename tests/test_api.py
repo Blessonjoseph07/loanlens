@@ -41,6 +41,13 @@ def test_what_it_takes(client):
     assert client.post("/what-it-takes?target=0.3", json=GOOD).status_code == 422
 
 
+def test_report_is_a_pdf(client, monkeypatch):
+    monkeypatch.setattr("loanlens.llm.ollama_reachable", lambda timeout=0.5: False)
+    r = client.post("/report", json={**GOOD, "cibil_score": 400})
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
+    assert r.content.startswith(b"%PDF") and "loanlens_rejected.pdf" in r.headers["content-disposition"]
+
+
 def test_explain_works_without_ollama(client, monkeypatch):
     monkeypatch.setattr("loanlens.llm.ollama_reachable", lambda timeout=0.5: False)
     r = client.post("/explain", json={**GOOD, "cibil_score": 400}).json()

@@ -8,6 +8,7 @@ Endpoints
   POST /predict         label, probability, band, SHAP top-3, certainty meter
   POST /what-it-takes   cheapest changes that reach a clear approval
   POST /explain         full pipeline: prediction + retrieved sources + LLM explanation
+  POST /report          the same, as a one-page PDF
 
 The same Python modules power the Streamlit app, so both always agree.
 The embedder and FAISS index are only loaded on the first /explain call,
@@ -19,12 +20,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from loanlens.counterfactual import what_would_it_take
 from loanlens.data import ValidationError
 from loanlens.llm import analyse, ollama_reachable
+from loanlens.pdf_report import build_pdf
 from loanlens.predict import Predictor
 from loanlens.uncertainty import FamiliarityChecker, assess
 
@@ -101,3 +103,15 @@ def explain(applicant: Applicant):
     result = analyse(applicant.model_dump(), STATE["predictor"], _retriever())
     result["prediction"]["certainty"] = _certainty(result["prediction"]["applicant"], result["prediction"]["band"])
     return result
+
+
+@app.post("/report", response_class=Response, responses={200: {"content": {"application/pdf": {}}}})
+def report(applicant: Applicant):
+    """One-page PDF: result, certainty, applicant, SHAP chart, explanation, sources, cheapest plan."""
+    a = applicant.model_dump()
+    result = analyse(a, STATE["predictor"], _retriever())
+    pred = result["prediction"]
+    pdf = build_pdf(result, assess(STATE["predictor"].model, STATE["checker"], pred["applicant"], pred["band"]),
+                    what_would_it_take(STATE["predictor"].model, a))
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="loanlens_{pred["label"].lower()}.pdf"'})

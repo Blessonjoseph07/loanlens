@@ -156,6 +156,9 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   ```bash
   docker run -p 8000:8000 loanlens
   ```
+- **PDF decision summary** - `loanlens/pdf_report.py` (fpdf2 + a matplotlib SHAP chart) builds a one-page
+  PDF with the result, certainty, applicant details, top factors, explanation and mismatch check, sources and
+  the cheapest "What would it take?" plan. Download it from the Prediction tab or `POST /report` on the API.
 
 ## Tests
 
