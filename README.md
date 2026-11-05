@@ -110,6 +110,10 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   turns as history. A question is only sent to the LLM if it retrieves a passage on its own (cosine ≥ 0.35)
   or names one of the model's inputs (`mentioned_features()` in `loanlens/data.py`); anything else is refused
   without an LLM call. A fast port check makes the "Ollama is not running" fallback instant.
+- **Listen in your language (Prediction tab)** - `loanlens/voice.py` reads the explanation aloud with the
+  browser's own Web Speech API (nothing leaves the device). `translate()` in `loanlens/llm.py` asks llama3.2
+  for Malayalam, Hindi or Tamil and only accepts the result if every `[n]` citation survives (one retry,
+  then English). Without Ollama, a summary built from the prediction is read instead.
 
 ## Tests
 

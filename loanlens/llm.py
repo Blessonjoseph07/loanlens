@@ -207,6 +207,37 @@ def chat_followup(question: str, prediction: dict, retriever, history: list[dict
         return {**out, "status": "ollama_unavailable", "notice": OLLAMA_DOWN_MSG}
 
 
+TRANSLATE_PROMPT = """You are a careful translator. Translate the TEXT into {language}.
+Rules:
+- Output only the translation, nothing else.
+- Keep every citation marker such as [1], [2], [3] exactly as it is, in the same place.
+- Keep numbers, percentages and rupee amounts unchanged. Keep the words CIBIL and EMI in English.
+- Use simple, everyday words."""
+
+
+def translate(text: str, language: str, client=None) -> dict:
+    """Translate an explanation with the local LLM; citations must survive.
+
+    Returns {"status": ok|unchanged|lost_citations|ollama_unavailable, "text", "notice"}.
+    On failure the caller keeps showing the English text.
+    """
+    if language == "English" or not text.strip():
+        return {"status": "unchanged", "text": text, "notice": ""}
+    wanted = sorted(CITATION.findall(text))
+    try:
+        client = client or make_client()
+        for _ in (1, 2):
+            out = _chat(client, f"TEXT\n{text}", system=TRANSLATE_PROMPT.format(language=language))
+            if sorted(CITATION.findall(out)) == wanted:
+                return {"status": "ok", "text": out, "notice": ""}
+        return {"status": "lost_citations", "text": text,
+                "notice": f"The {language} translation dropped or changed the [n] citations twice, "
+                          "so the English text is shown instead."}
+    except Exception:
+        return {"status": "ollama_unavailable", "text": text,
+                "notice": f"{OLLAMA_DOWN_MSG}, so it cannot translate into {language}. Showing English."}
+
+
 def analyse(applicant: dict, predictor, retriever, client=None) -> dict:
     """Full LoanLens pipeline used by the app and the tests.
 

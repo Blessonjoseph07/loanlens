@@ -4,7 +4,8 @@ Run with:  streamlit run app.py
 
 Layout
   Sidebar : applicant form (11 fields, enforced ranges) + sample applicants
-  Tab 1   : Prediction - result card, SHAP chart, AI explanation, sources, follow-up chat, What if?
+  Tab 1   : Prediction - result card, SHAP chart, AI explanation, sources, listen/translate,
+            follow-up chat, What if?
   Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection,
             and the credit-score time machine (habits simulated month by month)
   Tab 3   : Model performance - metrics table, confusion matrix, feature importance
@@ -20,12 +21,14 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 from loanlens.counterfactual import apply_plan, what_would_it_take
 from loanlens.data import (FEATURES, LABELS, RANGES, RUPEE_FIELDS, ValidationError,
                            format_inr, format_value)
-from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, chat_followup, ollama_reachable, explain_plan, plan_query
+from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, chat_followup, ollama_reachable, translate, explain_plan, plan_query
 from loanlens.predict import Predictor
+from loanlens.voice import LANGUAGES, plain_summary, speak_html
 from loanlens.timeline import HABITS, first_month, simulate
 from loanlens.rag import NO_SOURCE_MSG, Retriever, THRESHOLD, build_query, load_embedder
 
@@ -270,7 +273,7 @@ if st.session_state.pop("run_predict", False):
         result, error = run_analysis(applicant)
     st.session_state["result"], st.session_state["error"] = result, error
     st.session_state.pop("whatif", None)
-    for k in ("cf", "cf_expl", "chat"):      # plans and chat belong to the previous applicant
+    for k in ("cf", "cf_expl", "chat", "translations", "tr_notice"):      # plans and chat belong to the previous applicant
         st.session_state.pop(k, None)
     if result:   # reset the What-if sliders to this applicant
         st.session_state["wi_cibil"] = result["prediction"]["applicant"]["cibil_score"]
@@ -431,6 +434,33 @@ with tab_pred:
                        "probability away from the average prediction.")
 
         explanation_block(result, "main")
+
+        # ---------------- Listen / translate ----------------
+        st.markdown("#### Listen in your language")
+        expl = result["explanation"]
+        base_text = expl["text"] if expl["status"] == "ok" else plain_summary(pred)
+        cache = st.session_state.setdefault("translations", {})
+        v1, v2 = st.columns([1, 2], vertical_alignment="bottom")
+        lang = v1.selectbox("Language", list(LANGUAGES), key="voice_lang")
+        if lang != "English" and lang not in cache:
+            if v2.button(f"Translate to {lang} with {OLLAMA_MODEL}"):
+                with st.spinner(f"Translating into {lang}..."):
+                    tr = translate(base_text, lang)
+                if tr["status"] == "ok":           # only successes are cached, so a retry is possible
+                    cache[lang] = tr
+                st.session_state["tr_notice"] = (lang, tr["notice"])
+                st.rerun()
+        tr = cache.get(lang) if lang != "English" else None
+        translated = bool(tr)
+        notice_lang, notice = st.session_state.get("tr_notice", (None, ""))
+        if notice and notice_lang == lang and not translated:
+            st.warning(notice)
+        if expl["status"] != "ok":
+            st.caption("No AI explanation is available, so a summary built from the prediction is read instead.")
+        shown = tr["text"] if translated else base_text
+        st.markdown(f"<div class='ll-card'><h4>{lang if translated else 'English'} text</h4>"
+                    f"<div class='ll-explain'>{render_answer(shown)}</div></div>", unsafe_allow_html=True)
+        components.html(speak_html(shown, LANGUAGES[lang] if translated else "en-IN"), height=56)
 
         # ---------------- Chat with the decision ----------------
         st.markdown("#### Ask about this decision")
