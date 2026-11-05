@@ -1,5 +1,7 @@
 # LoanLens
 
+![tests](https://github.com/Blessonjoseph07/loanlens/actions/workflows/tests.yml/badge.svg)
+
 **Loan Approval Prediction with a Generative AI-Based Loan Eligibility Explainer**
 
 A weekend experiment in gluing a classic ML model to a small local RAG + LLM stack: can a Random Forest's
@@ -138,6 +140,22 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   (quality, CV F1, error count, training time, single-prediction latency, model size, ROC points). The tab
   shows the table, zoomed ROC curves and an errors-vs-speed chart. LightGBM makes 12 errors vs 15 for the
   forest and is several times faster, but the app keeps the forest because SHAP and the certainty meter use it.
+- **REST API, Docker and CI** - `api.py` (FastAPI) exposes `/health`, `/predict` (prediction, SHAP factors,
+  certainty), `/what-it-takes` and `/explain` (full RAG + LLM pipeline) with pydantic validation of every
+  range; Swagger docs at `/docs`. The `Dockerfile` builds a CPU-only image with the embedder baked in, and
+  `.github/workflows/tests.yml` runs the whole pytest suite on every push.
+
+  ```bash
+  uvicorn api:app --port 8000
+  ```
+
+  ```bash
+  docker build -t loanlens .
+  ```
+
+  ```bash
+  docker run -p 8000:8000 loanlens
+  ```
 
 ## Tests
 
