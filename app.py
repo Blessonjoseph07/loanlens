@@ -8,8 +8,9 @@ Layout
             follow-up chat, What if?
   Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection,
             and the credit-score time machine (habits simulated month by month)
-  Tab 3   : Model performance - metrics table, confusion matrix, feature importance
-  Tab 4   : About - problem, dataset, ML -> GenAI flow diagram, limitations
+  Tab 3   : Model performance
+  Tab 4   : Fairness - group metrics, gaps and a flip test for education / self-employment - metrics table, confusion matrix, feature importance
+  Tab 5   : About - problem, dataset, ML -> GenAI flow diagram, limitations
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from loanlens.counterfactual import apply_plan, what_would_it_take
+from loanlens.fairness import FLIP_TOLERANCE, GAP_TOLERANCE, audit, holdout_split
 from loanlens.data import (FEATURES, LABELS, RANGES, RUPEE_FIELDS, ValidationError,
                            format_inr, format_value)
 from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, chat_followup, ollama_reachable, translate, explain_plan, plan_query
@@ -93,6 +95,12 @@ def get_retriever():
 def load_metrics():
     path = ROOT / "metrics.json"
     return json.loads(path.read_text()) if path.exists() else None
+
+
+@st.cache_resource(show_spinner="Auditing the model on the test set...")
+def get_audit():
+    X, y = holdout_split(ROOT / "loan_approval_dataset.csv")
+    return audit(get_predictor().model, X, y)
 
 
 @st.cache_data(ttl=15, show_spinner=False)
@@ -391,7 +399,8 @@ def explanation_block(result: dict, key: str):
 # --------------------------------------------------------------------------
 # Tabs
 # --------------------------------------------------------------------------
-tab_pred, tab_plan, tab_perf, tab_about = st.tabs(["Prediction", "Plan", "Model performance", "About"])
+tab_pred, tab_plan, tab_perf, tab_fair, tab_about = st.tabs(
+    ["Prediction", "Plan", "Model performance", "Fairness", "About"])
 
 with tab_pred:
     if model_error:
@@ -685,6 +694,63 @@ with tab_perf:
                      hide_index=True)
         st.caption("Interpretation: holding every other input fixed, the approval probability jumps once CIBIL "
                    "passes roughly 550, which shows how strongly the model depends on this one feature.")
+
+with tab_fair:
+    st.markdown("#### Does the model play fair?")
+    st.caption("Education and self-employment describe *who* the applicant is, not their finances. On the same "
+               f"854-applicant test set, each group is compared on approval rate, accuracy, true-positive rate "
+               f"(qualified people approved) and false-positive rate (unqualified people approved). Gaps above "
+               f"{GAP_TOLERANCE:.0%} points, or a flip rate above {FLIP_TOLERANCE:.0%}, are flagged.")
+    report, audit_error = safe(get_audit)
+    if audit_error:
+        st.error(f"The fairness audit could not run ({audit_error}).")
+    else:
+        for attr, r in report.items():
+            ok = r["verdict"] == "ok"
+            st.markdown(f"""<div class="ll-card"><h4>{r['name']}</h4>
+              <span class="ll-pill {'ok' if ok else 'warn'}" style="margin-left:0">
+              {'No issue found' if ok else 'Worth a closer look'}</span>
+              <div class="ll-meta">{'<br>'.join(html.escape(x) for x in r['problems']) or
+                'All gaps are within tolerance and swapping this attribute alone barely moves decisions.'}</div>
+            </div>""", unsafe_allow_html=True)
+            f1, f2 = st.columns([1.25, 1], gap="large")
+            with f1:
+                tbl = r["table"].rename(columns={
+                    "n": "Applicants", "actual_approval_rate": "Actual approval", "predicted_approval_rate":
+                    "Predicted approval", "accuracy": "Accuracy", "tpr": "True-positive rate",
+                    "fpr": "False-positive rate"})
+                shown = pd.DataFrame({grp: [f"{int(row['Applicants'])}"] +
+                                      [f"{row[c]:.1%}" for c in tbl.columns if c != "Applicants"]
+                                      for grp, row in tbl.iterrows()},
+                                     index=list(tbl.columns))
+                st.dataframe(shown, width="stretch")
+                g, fl = r["gaps"], r["flip"]
+                st.markdown(
+                    f"- **Parity gap** (predicted approval): {g['parity_gap']:.1%} points "
+                    f"(the real labels already differ by {g['label_gap']:.1%})\n"
+                    f"- **Equal-opportunity gap** (true-positive rate): {g['tpr_gap']:.1%} points\n"
+                    f"- **False-positive gap**: {g['fpr_gap']:.1%} points\n"
+                    f"- **Flip test:** changing only {r['name'].lower()} flips **{fl['n_flipped']}** of "
+                    f"{int(r['table']['n'].sum())} decisions ({fl['flip_rate']:.1%}); average probability change "
+                    f"{fl['mean_abs_change']:.1%}, largest {fl['max_abs_change']:.1%}.")
+            with f2:
+                metrics = ["predicted_approval_rate", "accuracy", "tpr", "fpr"]
+                names = ["Predicted approval", "Accuracy", "True-positive", "False-positive"]
+                fig = go.Figure([go.Bar(name=str(grp), x=names, y=[r["table"].loc[grp, m] * 100 for m in metrics],
+                                        text=[f"{r['table'].loc[grp, m]:.1%}" for m in metrics],
+                                        textposition="outside", marker_color=c)
+                                 for grp, c in zip(r["table"].index, [ACCENT, "#A5B4FC"])])
+                fig.update_layout(barmode="group", height=300, margin=dict(l=10, r=10, t=10, b=30),
+                                  plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                                  yaxis=dict(title="%", range=[0, 115], gridcolor="#F3F4F6"),
+                                  legend=dict(orientation="h", y=1.12))
+                st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=f"fair_{attr}")
+        edu = report["education"]["table"]
+        st.caption(f"Reading it: both attributes pass, but notice that rejected non-graduates are wrongly approved "
+                   f"{edu.loc['Not Graduate', 'fpr']:.1%} of the time vs {edu.loc['Graduate', 'fpr']:.1%} for "
+                   "graduates. With about 160 rejected applicants per group that is a handful of people, so it "
+                   "is within noise, but it is the number to watch on a larger dataset. Passing this audit does "
+                   "not prove the model is fair in general, only on these two attributes and this data.")
 
 with tab_about:
     a1, a2 = st.columns([1.15, 1], gap="large")

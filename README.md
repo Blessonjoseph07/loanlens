@@ -114,6 +114,10 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   browser's own Web Speech API (nothing leaves the device). `translate()` in `loanlens/llm.py` asks llama3.2
   for Malayalam, Hindi or Tamil and only accepts the result if every `[n]` citation survives (one retry,
   then English). Without Ollama, a summary built from the prediction is read instead.
+- **Fairness tab** - `loanlens/fairness.py` re-creates train.py's exact test split and compares Graduate vs
+  Not Graduate and self-employed vs not on approval rate, accuracy, true- and false-positive rate, plus a flip
+  test (change only that attribute and count flipped decisions). Both attributes currently pass; the
+  write-up points out the one number worth watching (false-positive rate for non-graduates).
 
 ## Tests
 
