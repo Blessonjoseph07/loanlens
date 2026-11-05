@@ -893,6 +893,14 @@ income, loan amount, loan term, CIBIL score and four asset values) and the targe
    Only passages with cosine similarity ≥ 0.35 are kept.
 3. **GenAI:** llama3.2 running locally in Ollama writes a short, cited explanation using only
    the applicant, prediction and sources. A grounding check verifies the label and a [n] citation.
+
+#### Extras
+- **Plan tab:** the cheapest changes that flip a rejection, and a month-by-month credit-score time machine.
+- **How sure is it?** tree agreement plus a check that the applicant resembles the training data.
+- **Mismatch alarm:** flags explanations that ignore SHAP's top factor.
+- **Chat, listen and translate:** follow-up questions with citations; Malayalam, Hindi or Tamil read aloud.
+- **Fairness tab** and **model shootout** against XGBoost, LightGBM and HistGradientBoosting.
+- **PDF summary**, plus a FastAPI service, Docker image and CI in the repository.
 """)
     with a2:
         st.graphviz_chart("""

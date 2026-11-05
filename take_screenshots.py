@@ -16,7 +16,7 @@ def pick_sample(page, name):
 
 with sync_playwright() as p:
     browser = p.chromium.launch(channel="msedge", headless=True)
-    page = browser.new_page(viewport={"width": 1440, "height": 2100}, device_scale_factor=1)
+    page = browser.new_page(viewport={"width": 1440, "height": 2900}, device_scale_factor=1)
     page.goto(URL); page.wait_for_selector("text=Applicant details", timeout=60000); page.wait_for_timeout(2000)
     page.screenshot(path=OUT / "0_home.png", full_page=True)
 
@@ -26,6 +26,10 @@ with sync_playwright() as p:
         page.wait_for_timeout(1000)
         page.screenshot(path=OUT / f"{i}_{name.split()[0].lower()}_result.png", full_page=True)
 
+    page.get_by_role("tab", name="Plan").click(); page.wait_for_timeout(4000)
+    page.screenshot(path=OUT / "6_plan.png", full_page=True)
+    page.get_by_role("tab", name="Fairness").click(); page.wait_for_timeout(4000)
+    page.screenshot(path=OUT / "7_fairness.png", full_page=True)
     page.get_by_role("tab", name="Model performance").click(); page.wait_for_timeout(2500)
     page.screenshot(path=OUT / "4_model_performance.png", full_page=True)
     page.get_by_role("tab", name="About").click(); page.wait_for_timeout(3000)

@@ -16,21 +16,32 @@ credit-awareness pages (RAG with FAISS). It's a learning project, not a lending 
 
 ```
 loanlens/
-  app.py                 Streamlit UI (Prediction / Model performance / About tabs)
+  app.py                 Streamlit UI (Prediction / Plan / Model performance / Fairness / About tabs)
+  api.py                 FastAPI service: /health /predict /what-it-takes /explain /report
   train.py               trains the models -> model.joblib, metrics.json, 2 charts
+  compare_models.py      model shootout (RF, LR, HistGB, XGBoost, LightGBM) -> comparison.json
   build_index.py         chunks + embeds the knowledge base -> index/
+  take_screenshots.py    Playwright screenshots of the running app -> screenshots/
   loanlens/
-    data.py              cleaning, feature list, input ranges, validation
+    data.py              cleaning, feature list, input ranges, validation, feature-term detector
     predict.py           load model, predict, confidence band, SHAP top-3 factors
     rag.py               query from ML output, MiniLM embeddings, FAISS search, 0.35 threshold
-    llm.py               Ollama call, system prompt, grounding check, fallbacks, full pipeline
+    llm.py               Ollama calls: explanation, plan, chat, translation, grounding + mismatch checks
+    counterfactual.py    "What would it take?" cheapest changes to reach a clear approval
+    timeline.py          credit-score time machine (habits simulated month by month)
+    uncertainty.py       tree agreement + "is this applicant like the training data?"
+    fairness.py          group metrics, gaps and flip test for education / self-employment
+    voice.py             spoken summary + browser text-to-speech player
+    pdf_report.py        one-page PDF decision summary
   knowledge_base/        8 RBI / CIBIL pages saved as text (SOURCE + TITLE header lines)
   index/                 faiss.index + chunks.json (generated)
-  tests/test_loanlens.py 7 pytest cases
+  tests/                 pytest suite (core cases + one file per feature; the LLM is always mocked)
+  Dockerfile             CPU-only image for the API (and the app)
+  .github/workflows/     runs pytest on every push
   .streamlit/config.toml light theme, indigo accent, tracebacks hidden
 ```
 
-## Setup (Windows, Python 3.11+)
+## Setup (Windows, Python 3.13+)
 
 1. Create and activate a virtual environment, then install the packages:
 
@@ -174,13 +185,13 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
 
 ## Screenshots
 
-`take_screenshots.py` captures the main views into `screenshots/` (app must be running). Other views worth checking by hand:
+Captured with `take_screenshots.py` while the app runs (Ollama offline, so explanation cards show the fallback).
 
-1. **Approved result + explanation** - load *Approved applicant*, Predict, capture the result card, SHAP chart and AI explanation.
-2. **Rejected result with Sources expanded** - load *Rejected applicant*, Predict, open the *Sources* panel.
-3. **"No supporting source found"** - temporarily raise `THRESHOLD` in `loanlens/rag.py` to `0.9`, restart the app and Predict (set it back to `0.35` afterwards).
-4. **App with Ollama stopped** - quit Ollama from the system tray, Predict, capture the notice with the passages still shown.
-5. **Model performance tab** - the comparison table, confusion matrix and feature importance chart.
+| | |
+|---|---|
+| ![Home](screenshots/0_home.png) | ![Rejected result](screenshots/2_rejected_result.png) |
+| ![Plan tab](screenshots/6_plan.png) | ![Fairness tab](screenshots/7_fairness.png) |
+| ![Model performance](screenshots/4_model_performance.png) | ![About](screenshots/5_about.png) |
 
 ## Knowledge base sources
 
