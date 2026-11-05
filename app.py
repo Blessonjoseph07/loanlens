@@ -8,7 +8,7 @@ Layout
             follow-up chat, What if?
   Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection,
             and the credit-score time machine (habits simulated month by month)
-  Tab 3   : Model performance
+  Tab 3   : Model performance (+ shootout: RF vs LR vs three boosting libraries)
   Tab 4   : Fairness - group metrics, gaps and a flip test for education / self-employment - metrics table, confusion matrix, feature importance
   Tab 5   : About - problem, dataset, ML -> GenAI flow diagram, limitations
 """
@@ -107,6 +107,12 @@ def get_checker():
 def get_audit():
     X, y = holdout_split(ROOT / "loan_approval_dataset.csv")
     return audit(get_predictor().model, X, y)
+
+
+@st.cache_data
+def load_comparison():
+    path = ROOT / "comparison.json"
+    return json.loads(path.read_text()) if path.exists() else None
 
 
 @st.cache_data(ttl=15, show_spinner=False)
@@ -736,6 +742,64 @@ with tab_perf:
                      hide_index=True)
         st.caption("Interpretation: holding every other input fixed, the approval probability jumps once CIBIL "
                    "passes roughly 550, which shows how strongly the model depends on this one feature.")
+
+    # ---------------- Model shootout ----------------
+    comp = load_comparison()
+    st.markdown("#### Model shootout")
+    if not comp:
+        st.info("comparison.json not found. Run `python compare_models.py loan_approval_dataset.csv`.")
+    else:
+        cm_ = comp["models"]
+        names = list(cm_)
+        err_col = f"Errors / {comp['test_size']}"
+        table = pd.DataFrame({n: {"Accuracy": m["accuracy"], "F1": m["f1"], "ROC-AUC": m["roc_auc"],
+                                  "CV F1": f"{m['cv_f1_mean']:.3f} ± {m['cv_f1_std']:.3f}",
+                                  err_col: m["errors"], "Train (s)": m["train_seconds"],
+                                  "1 prediction (ms)": m["latency_ms"], "Size (KB)": m["size_kb"]}
+                              for n, m in cm_.items()}).T
+        st.dataframe(table.style.format({"Accuracy": "{:.3f}", "F1": "{:.3f}", "ROC-AUC": "{:.4f}",
+                                         "Train (s)": "{:.2f}", "1 prediction (ms)": "{:.1f}",
+                                         "Size (KB)": "{:,.0f}"})
+                     .highlight_max(subset=["Accuracy", "F1", "ROC-AUC"], color="#E0E7FF")
+                     .highlight_min(subset=[err_col, "1 prediction (ms)", "Size (KB)"], color="#D1FAE5"),
+                     width="stretch")
+        s1, s2 = st.columns(2, gap="large")
+        palette = [ACCENT, GREEN, AMBER, RED, "#0EA5E9"]
+        with s1:
+            fig = go.Figure()
+            for n, c in zip(names, palette):
+                fig.add_trace(go.Scatter(x=cm_[n]["roc"]["fpr"], y=cm_[n]["roc"]["tpr"], mode="lines",
+                                         name=f"{n} ({cm_[n]['roc_auc']:.3f})", line=dict(color=c, width=2)))
+            fig.update_layout(height=340, margin=dict(l=10, r=10, t=30, b=40), plot_bgcolor="white",
+                              paper_bgcolor="rgba(0,0,0,0)",
+                              title=dict(text="ROC curves (zoomed in)", font=dict(size=13)),
+                              xaxis=dict(title="False-positive rate", range=[0, 0.3], gridcolor="#F3F4F6"),
+                              yaxis=dict(title="True-positive rate", range=[0.7, 1.01], gridcolor="#F3F4F6"),
+                              legend=dict(x=0.3, y=0.05, bgcolor="rgba(255,255,255,.85)"))
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="roc_all")
+        with s2:
+            order = sorted(names, key=lambda n: cm_[n]["errors"], reverse=True)   # best at the top
+            colour = dict(zip(names, palette))
+            fig = go.Figure(go.Bar(
+                x=[cm_[n]["errors"] for n in order], y=order, orientation="h",
+                marker_color=[colour[n] for n in order], cliponaxis=False, textposition="outside",
+                text=[f"{cm_[n]['errors']} · {cm_[n]['latency_ms']:.1f} ms · {cm_[n]['size_kb']:,.0f} KB"
+                      for n in order],
+                hovertemplate="%{y}: %{x} errors<extra></extra>"))
+            fig.update_layout(height=340, margin=dict(l=10, r=10, t=30, b=40), plot_bgcolor="white",
+                              paper_bgcolor="rgba(0,0,0,0)",
+                              title=dict(text="Wrong predictions · speed · size", font=dict(size=13)),
+                              xaxis=dict(title=f"Wrong predictions out of {comp['test_size']}",
+                                         range=[0, max(cm_[n]["errors"] for n in names) * 1.6],
+                                         gridcolor="#F3F4F6"))
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="speed_errors")
+        best = min(names, key=lambda n: (cm_[n]["errors"], cm_[n]["latency_ms"]))
+        rf_ = cm_["Random Forest"]
+        st.caption(f"Reading it: {best} makes the fewest mistakes ({cm_[best]['errors']} vs {rf_['errors']} "
+                   f"for the Random Forest) and answers about {rf_['latency_ms'] / cm_[best]['latency_ms']:.0f}x "
+                   f"faster using {cm_[best]['size_kb'] / rf_['size_kb']:.0%} of the disk space. The app still "
+                   "serves the Random Forest because SHAP, the certainty meter and the tests are built around it, "
+                   "and the gap is a few applicants out of 854, within the CV spread. Timings come from one laptop.")
 
 with tab_fair:
     st.markdown("#### Does the model play fair?")

@@ -63,6 +63,12 @@ Expected: Random Forest accuracy 0.982, F1 0.986, ROC-AUC 0.999; Logistic Regres
 majority baseline 0.622.
 
 ```bash
+python compare_models.py loan_approval_dataset.csv
+```
+
+Optional: writes `comparison.json` for the model shootout.
+
+```bash
 python build_index.py
 ```
 
@@ -127,6 +133,11 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   explanation talks about and compares them with SHAP's top 3. The explanation card shows a badge:
   *matches*, *partly matches* (a lower factor missing or other inputs discussed) or *mismatch* (SHAP's
   number-one factor never mentioned). It is stricter than the grounding check, which only needs a citation.
+- **Model shootout (Model performance tab)** - `compare_models.py` trains Logistic Regression, the Random
+  Forest, HistGradientBoosting, XGBoost and LightGBM on train.py's exact split and writes `comparison.json`
+  (quality, CV F1, error count, training time, single-prediction latency, model size, ROC points). The tab
+  shows the table, zoomed ROC curves and an errors-vs-speed chart. LightGBM makes 12 errors vs 15 for the
+  forest and is several times faster, but the app keeps the forest because SHAP and the certainty meter use it.
 
 ## Tests
 

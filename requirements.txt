@@ -11,6 +11,8 @@ torch==2.15.0
 sentence-transformers==6.2.0
 transformers==5.22.1
 faiss-cpu==1.15.1
+xgboost==3.4.1
+lightgbm==4.7.0
 ollama==0.6.3
 streamlit==1.66.1
 plotly==7.1.0
