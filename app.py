@@ -364,6 +364,23 @@ def result_card(pred: dict, sample_name: str | None):
     </div>""", unsafe_allow_html=True)
 
 
+def consistency_badge(c: dict | None) -> str:
+    """Mismatch alarm: compare the factors the LLM talks about with SHAP's top 3."""
+    if not c:
+        return ""
+    names = lambda fs: ", ".join(LABELS.get(f, f) for f in fs)
+    if c["status"] == "consistent":
+        return "<span class='ll-pill ok'>✓ matches the SHAP factors</span>"
+    detail = []
+    if c["missing"]:
+        detail.append(f"does not mention {names(c['missing'])}")
+    if c["extra"]:
+        detail.append(f"also talks about {names(c['extra'])}")
+    kind = "off" if c["status"] == "mismatch" else "warn"
+    label = "✗ Mismatch" if c["status"] == "mismatch" else "⚠ Partly matches SHAP"
+    return f"<span class='ll-pill {kind}' title='{html.escape('; '.join(detail))}'>{label}: {html.escape('; '.join(detail))}</span>"
+
+
 def explanation_block(result: dict, key: str):
     """AI explanation card + Sources expander (shared by main result and What-if)."""
     expl, sources = result["explanation"], result["sources"]
@@ -373,6 +390,7 @@ def explanation_block(result: dict, key: str):
         st.markdown(f"""
         <div class="ll-card">
           <h4>AI explanation · {OLLAMA_MODEL} via Ollama{retry}</h4>
+          <div style="margin:-.2rem 0 .6rem -.35rem">{consistency_badge(expl.get('consistency'))}</div>
           <div class="ll-explain">{render_answer(expl['text'])}</div>
         </div>""", unsafe_allow_html=True)
     elif status == "no_sources":

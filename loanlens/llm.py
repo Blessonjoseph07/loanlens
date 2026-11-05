@@ -81,6 +81,30 @@ def ollama_reachable(timeout: float = 0.5) -> bool:
         return False
 
 
+def consistency_check(answer: str, prediction: dict) -> dict:
+    """Mismatch alarm: does the explanation talk about the factors SHAP found?
+
+    The grounding check only proves the answer cites *something*. This one
+    compares the inputs the answer mentions with SHAP's top factors:
+      consistent - every top factor is mentioned and no other input is
+      partial    - a lower-ranked top factor is missing, or other inputs are
+                   discussed as well
+      mismatch   - SHAP's number-one factor is not mentioned at all
+    """
+    from .data import mentioned_features
+    mentioned = mentioned_features(answer)
+    top = [f["feature"] for f in prediction["factors"]]
+    missing = [f for f in top if f not in mentioned]
+    extra = [f for f in mentioned if f not in top]
+    if top and top[0] in missing:
+        status = "mismatch"
+    elif missing or extra:
+        status = "partial"
+    else:
+        status = "consistent"
+    return {"status": status, "mentioned": mentioned, "missing": missing, "extra": extra}
+
+
 def make_client(host: str = OLLAMA_HOST):
     if not ollama_reachable():
         raise ConnectionError("Ollama is not running")
@@ -115,7 +139,8 @@ def explain(applicant: dict, prediction: dict, sources: list[dict], client=None)
         for attempt in (1, 2):                        # rule 2: at most one regeneration
             answer = _chat(client, user_message)
             if is_grounded(answer, prediction["label"]):
-                return {"status": "ok", "text": answer, "notice": "", "attempts": attempt}
+                return {"status": "ok", "text": answer, "notice": "", "attempts": attempt,
+                        "consistency": consistency_check(answer, prediction)}
         return {"status": "ungrounded", "text": "", "notice": UNGROUNDED_MSG, "attempts": 2}
     except Exception as exc:                          # rule 3: Ollama down / unreachable
         notice = OLLAMA_DOWN_MSG

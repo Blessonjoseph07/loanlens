@@ -123,6 +123,10 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   percentile ranges, loan/income and assets/loan ratios, and the distance to the 5 nearest training
   applicants in the model's scaled space). The documented failure case - wrongly approved at 90% - is
   flagged *medium* because its assets-to-loan ratio is outside the training range.
+- **Mismatch alarm** - `consistency_check()` in `loanlens/llm.py` finds which model inputs the LLM's
+  explanation talks about and compares them with SHAP's top 3. The explanation card shows a badge:
+  *matches*, *partly matches* (a lower factor missing or other inputs discussed) or *mismatch* (SHAP's
+  number-one factor never mentioned). It is stricter than the grounding check, which only needs a citation.
 
 ## Tests
 
