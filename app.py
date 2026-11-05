@@ -4,7 +4,7 @@ Run with:  streamlit run app.py
 
 Layout
   Sidebar : applicant form (11 fields, enforced ranges) + sample applicants
-  Tab 1   : Prediction - result card, SHAP chart, AI explanation, sources, What if?
+  Tab 1   : Prediction - result card, SHAP chart, AI explanation, sources, follow-up chat, What if?
   Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection,
             and the credit-score time machine (habits simulated month by month)
   Tab 3   : Model performance - metrics table, confusion matrix, feature importance
@@ -24,7 +24,7 @@ import streamlit as st
 from loanlens.counterfactual import apply_plan, what_would_it_take
 from loanlens.data import (FEATURES, LABELS, RANGES, RUPEE_FIELDS, ValidationError,
                            format_inr, format_value)
-from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, explain_plan, plan_query
+from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, chat_followup, ollama_reachable, explain_plan, plan_query
 from loanlens.predict import Predictor
 from loanlens.timeline import HABITS, first_month, simulate
 from loanlens.rag import NO_SOURCE_MSG, Retriever, THRESHOLD, build_query, load_embedder
@@ -95,6 +95,8 @@ def load_metrics():
 @st.cache_data(ttl=15, show_spinner=False)
 def ollama_online() -> bool:
     """Quick health check so the header can show whether the LLM is reachable."""
+    if not ollama_reachable():
+        return False
     try:
         import ollama
         ollama.Client(host=OLLAMA_HOST, timeout=2).list()
@@ -268,7 +270,7 @@ if st.session_state.pop("run_predict", False):
         result, error = run_analysis(applicant)
     st.session_state["result"], st.session_state["error"] = result, error
     st.session_state.pop("whatif", None)
-    for k in ("cf", "cf_expl"):      # plans belong to the previous applicant
+    for k in ("cf", "cf_expl", "chat"):      # plans and chat belong to the previous applicant
         st.session_state.pop(k, None)
     if result:   # reset the What-if sliders to this applicant
         st.session_state["wi_cibil"] = result["prediction"]["applicant"]["cibil_score"]
@@ -429,6 +431,49 @@ with tab_pred:
                        "probability away from the average prediction.")
 
         explanation_block(result, "main")
+
+        # ---------------- Chat with the decision ----------------
+        st.markdown("#### Ask about this decision")
+        st.caption("Follow-up questions are answered from this applicant's numbers and the RBI/CIBIL pages, "
+                   "with citations. Off-topic questions are refused without calling the LLM.")
+        chat = st.session_state.setdefault("chat", [])
+
+        def ask(question: str):
+            history = [m for m in st.session_state["chat"] if m.get("content")]
+            reply = chat_followup(question, st.session_state["result"]["prediction"], retriever, history)
+            if reply["status"] == "empty":
+                return
+            st.session_state["chat"] += [{"role": "user", "content": question},
+                                         {"role": "assistant", "content": reply["text"],
+                                          "notice": reply["notice"], "sources": reply["sources"]}]
+
+        for m in chat:
+            with st.chat_message(m["role"]):
+                if m["role"] == "user":
+                    st.markdown(html.escape(m["content"]))
+                    continue
+                if m["content"]:
+                    st.markdown(f"<div class='ll-explain'>{render_answer(m['content'])}</div>",
+                                unsafe_allow_html=True)
+                if m.get("notice"):
+                    st.warning(m["notice"])
+                if m.get("sources"):
+                    st.markdown("<p class='ll-small'>" + " · ".join(
+                        f"[{i}] <a href='{html.escape(s['source'])}' target='_blank'>{html.escape(s['title'])}</a>"
+                        f" ({s['score']:.2f})" for i, s in enumerate(m["sources"], 1)) + "</p>",
+                        unsafe_allow_html=True)
+
+        suggestions = ["Why does the loan term matter?", "How can I improve my CIBIL score?",
+                       "Which of my inputs matters most?"]
+        sc = st.columns(len(suggestions))
+        for col, s in zip(sc, suggestions):
+            col.button(s, key=f"sugg_{s}", on_click=ask, args=(s,), width="stretch")
+        with st.form("chat_form", clear_on_submit=True, border=False):
+            q1, q2 = st.columns([5, 1], vertical_alignment="bottom")
+            q1.text_input("Your question", key="chat_q", placeholder="e.g. Would a shorter tenure help me?")
+            if q2.form_submit_button("Ask", width="stretch"):
+                ask(st.session_state.get("chat_q", ""))
+                st.rerun()
 
         # ---------------- What if? ----------------
         st.markdown("#### What if?")

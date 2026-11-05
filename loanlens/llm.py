@@ -66,7 +66,24 @@ def is_grounded(answer: str, label: str) -> bool:
     return label.lower() in answer.lower() and bool(CITATION.search(answer))
 
 
+def ollama_reachable(timeout: float = 0.5) -> bool:
+    """Fast check that something listens on Ollama's port on this PC.
+
+    Without it, a stopped Ollama costs ~5 s per call on Windows (the client
+    tries IPv6 and IPv4 'localhost' before giving up).
+    """
+    import socket
+    port = int(OLLAMA_HOST.rsplit(":", 1)[1])
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def make_client(host: str = OLLAMA_HOST):
+    if not ollama_reachable():
+        raise ConnectionError("Ollama is not running")
     import ollama
     return ollama.Client(host=host, timeout=180)
 
@@ -143,6 +160,51 @@ def explain_plan(applicant: dict, cf: dict, sources: list[dict], client=None) ->
         return {"status": "ungrounded", "text": "", "notice": UNGROUNDED_MSG, "attempts": 2}
     except Exception:
         return {"status": "ollama_unavailable", "text": "", "notice": OLLAMA_DOWN_MSG, "attempts": 0}
+
+
+CHAT_PROMPT = """You are a credit-literacy tutor answering follow-up questions about ONE loan prediction.
+Use ONLY the facts in APPLICANT, PREDICTION and SOURCES (and the earlier conversation).
+Rules:
+- Answer the QUESTION in at most 120 words, using the applicant's own numbers where relevant.
+- Cite sources as [1], [2], [3] when you use them. If SOURCES is empty, say the answer uses only the model's numbers.
+- If the question cannot be answered from these facts, say so plainly instead of guessing.
+- Do not promise approval, do not recommend a lender or product, and do not give personal financial advice."""
+
+OFF_TOPIC_MSG = (NO_SOURCE_MSG + ". The question does not match the RBI/CIBIL pages or any of the model's "
+                 "inputs, so the LLM was not asked.")
+MAX_HISTORY = 6       # earlier chat messages sent back to the model
+
+
+def chat_followup(question: str, prediction: dict, retriever, history: list[dict] | None = None,
+                  client=None) -> dict:
+    """Answer a follow-up question about the current prediction.
+
+    Gate (no LLM call) unless the question either retrieves a passage with
+    cosine >= threshold on its own, or is about one of the model's inputs
+    (then it is answered from the applicant's numbers only).
+    Returns {"status", "text", "notice", "sources", "query"}.
+    """
+    question = (question or "").strip()
+    out = {"status": "empty", "text": "", "notice": "", "sources": [], "query": question}
+    if not question:
+        return out
+    from .data import mentioned_features
+    sources = retriever.search(question) if retriever else []
+    out["sources"] = sources
+    if not sources and not mentioned_features(question):
+        return {**out, "status": "no_sources", "notice": OFF_TOPIC_MSG}
+
+    message = build_user_message(prediction["applicant"], prediction, sources) + f"\n\nQUESTION\n{question}"
+    past = [{"role": m["role"], "content": m["content"]} for m in (history or [])][-MAX_HISTORY:]
+    try:
+        client = client or make_client()
+        for attempt in (1, 2):
+            answer = _chat(client, message, system=CHAT_PROMPT, history=past)
+            if not sources or CITATION.search(answer):     # cite when there is something to cite
+                return {**out, "status": "ok", "text": answer, "attempts": attempt}
+        return {**out, "status": "ungrounded", "notice": UNGROUNDED_MSG}
+    except Exception:
+        return {**out, "status": "ollama_unavailable", "notice": OLLAMA_DOWN_MSG}
 
 
 def analyse(applicant: dict, predictor, retriever, client=None) -> dict:

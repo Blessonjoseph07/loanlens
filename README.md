@@ -105,6 +105,11 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   low card use, a missed payment, ...) and a monthly saving one month at a time, re-scores the applicant at
   every step, and charts when the approval probability crosses 50% and 60%. The CIBIL point values are
   illustrative assumptions with diminishing returns near 900, and are editable in the app.
+- **Chat with the decision (Prediction tab)** - `chat_followup()` in `loanlens/llm.py` answers follow-up
+  questions with the applicant's numbers, the prediction and freshly retrieved passages, sending the last few
+  turns as history. A question is only sent to the LLM if it retrieves a passage on its own (cosine ≥ 0.35)
+  or names one of the model's inputs (`mentioned_features()` in `loanlens/data.py`); anything else is refused
+  without an LLM call. A fast port check makes the "Ollama is not running" fallback instant.
 
 ## Tests
 

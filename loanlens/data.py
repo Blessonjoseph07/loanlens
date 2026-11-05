@@ -72,6 +72,38 @@ RANGES = {
 }
 
 
+# Words people (and the LLM) use for each input. Used to spot which inputs a
+# question or an explanation talks about. Matched as whole words.
+FEATURE_TERMS = {
+    "no_of_dependents": ["dependent", "dependents", "children", "family size"],
+    "education": ["education", "graduate", "graduation", "degree"],
+    "self_employed": ["self-employed", "self employed", "self-employment", "business owner", "salaried"],
+    "income_annum": ["income", "salary", "earnings", "earn"],
+    "loan_amount": ["loan amount", "amount borrowed", "loan size", "size of the loan", "borrow", "borrowing"],
+    "loan_term": ["loan term", "term of the loan", "tenure", "repayment period", "term"],
+    "cibil_score": ["cibil", "credit score", "credit history", "credit report"],
+    "residential_assets_value": ["residential", "residential assets", "house value", "property value"],
+    "commercial_assets_value": ["commercial", "commercial assets"],
+    "luxury_assets_value": ["luxury", "luxury assets"],
+    "bank_asset_value": ["bank asset", "bank assets", "bank balance", "savings"],
+}
+
+
+def mentioned_features(text: str) -> list[str]:
+    """Inputs a piece of text talks about, e.g. 'my CIBIL and tenure' -> [loan_term, cibil_score]."""
+    import re
+    low = text.lower()
+    found = []
+    for feature, terms in FEATURE_TERMS.items():
+        for term in terms:
+            # whole words only; "term" must not match "long-term" or "short-term"
+            pattern = rf"(?<![\w-]){re.escape(term)}(?![\w-])"
+            if re.search(pattern, low):
+                found.append(feature)
+                break
+    return found
+
+
 def load_and_clean(path: str = "loan_approval_dataset.csv") -> pd.DataFrame:
     """Read the Kaggle CSV and clean it (same steps as train.py has always used).
 
