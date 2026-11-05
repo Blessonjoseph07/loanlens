@@ -1,0 +1,352 @@
+{
+  "Majority class (baseline)": {
+    "accuracy": 0.6217798594847775,
+    "precision": 0.6217798594847775,
+    "recall": 1.0,
+    "f1": 0.7667870036101083,
+    "roc_auc": 0.5,
+    "cv_f1_mean": 0.7671480144404332,
+    "cv_f1_std": 0.0,
+    "confusion_matrix": [
+      [
+        0,
+        323
+      ],
+      [
+        0,
+        531
+      ]
+    ]
+  },
+  "Logistic Regression": {
+    "accuracy": 0.914519906323185,
+    "precision": 0.9209558823529411,
+    "recall": 0.943502824858757,
+    "f1": 0.932093023255814,
+    "roc_auc": 0.9725560161620401,
+    "cv_f1_mean": 0.9312728981087129,
+    "cv_f1_std": 0.012880616032387007,
+    "confusion_matrix": [
+      [
+        280,
+        43
+      ],
+      [
+        30,
+        501
+      ]
+    ]
+  },
+  "Random Forest": {
+    "accuracy": 0.9824355971896955,
+    "precision": 0.9831460674157303,
+    "recall": 0.9887005649717514,
+    "f1": 0.9859154929577465,
+    "roc_auc": 0.9988543142502316,
+    "cv_f1_mean": 0.9833547181660839,
+    "cv_f1_std": 0.004011333283330534,
+    "confusion_matrix": [
+      [
+        314,
+        9
+      ],
+      [
+        6,
+        525
+      ]
+    ]
+  },
+  "feature_importance": {
+    "cibil_score": 0.8065,
+    "loan_term": 0.062,
+    "loan_amount": 0.0318,
+    "income_annum": 0.0193,
+    "luxury_assets_value": 0.0188,
+    "commercial_assets_value": 0.0173,
+    "residential_assets_value": 0.0168,
+    "bank_asset_value": 0.0153,
+    "no_of_dependents": 0.0077,
+    "self_employed_Yes": 0.0023,
+    "education_Not Graduate": 0.0022
+  },
+  "cibil_sweep": {
+    "350": 0.04,
+    "550": 0.74,
+    "750": 0.9,
+    "850": 0.89
+  },
+  "misclassified": [
+    {
+      "no_of_dependents": 3,
+      "education": "Not Graduate",
+      "self_employed": "Yes",
+      "income_annum": 8300000,
+      "loan_amount": 31400000,
+      "loan_term": 6,
+      "cibil_score": 674,
+      "residential_assets_value": 1000000,
+      "commercial_assets_value": 1600000,
+      "luxury_assets_value": 17200000,
+      "bank_asset_value": 6100000,
+      "actual": 0,
+      "prob_approved": 0.905
+    },
+    {
+      "no_of_dependents": 5,
+      "education": "Graduate",
+      "self_employed": "No",
+      "income_annum": 2000000,
+      "loan_amount": 6100000,
+      "loan_term": 2,
+      "cibil_score": 407,
+      "residential_assets_value": 1900000,
+      "commercial_assets_value": 1900000,
+      "luxury_assets_value": 4600000,
+      "bank_asset_value": 2000000,
+      "actual": 1,
+      "prob_approved": 0.43
+    },
+    {
+      "no_of_dependents": 1,
+      "education": "Not Graduate",
+      "self_employed": "Yes",
+      "income_annum": 1600000,
+      "loan_amount": 4400000,
+      "loan_term": 4,
+      "cibil_score": 364,
+      "residential_assets_value": 2500000,
+      "commercial_assets_value": 700000,
+      "luxury_assets_value": 4300000,
+      "bank_asset_value": 2400000,
+      "actual": 0,
+      "prob_approved": 0.695
+    },
+    {
+      "no_of_dependents": 0,
+      "education": "Not Graduate",
+      "self_employed": "No",
+      "income_annum": 2000000,
+      "loan_amount": 6900000,
+      "loan_term": 2,
+      "cibil_score": 448,
+      "residential_assets_value": 2700000,
+      "commercial_assets_value": 3800000,
+      "luxury_assets_value": 7100000,
+      "bank_asset_value": 1600000,
+      "actual": 1,
+      "prob_approved": 0.385
+    },
+    {
+      "no_of_dependents": 5,
+      "education": "Graduate",
+      "self_employed": "No",
+      "income_annum": 4400000,
+      "loan_amount": 15300000,
+      "loan_term": 4,
+      "cibil_score": 401,
+      "residential_assets_value": 200000,
+      "commercial_assets_value": 5400000,
+      "luxury_assets_value": 17500000,
+      "bank_asset_value": 2400000,
+      "actual": 1,
+      "prob_approved": 0.435
+    },
+    {
+      "no_of_dependents": 2,
+      "education": "Not Graduate",
+      "self_employed": "No",
+      "income_annum": 2100000,
+      "loan_amount": 4700000,
+      "loan_term": 2,
+      "cibil_score": 546,
+      "residential_assets_value": 6000000,
+      "commercial_assets_value": 3200000,
+      "luxury_assets_value": 5700000,
+      "bank_asset_value": 1500000,
+      "actual": 0,
+      "prob_approved": 0.575
+    },
+    {
+      "no_of_dependents": 4,
+      "education": "Graduate",
+      "self_employed": "Yes",
+      "income_annum": 9800000,
+      "loan_amount": 27000000,
+      "loan_term": 2,
+      "cibil_score": 395,
+      "residential_assets_value": 18700000,
+      "commercial_assets_value": 3000000,
+      "luxury_assets_value": 23000000,
+      "bank_asset_value": 9700000,
+      "actual": 0,
+      "prob_approved": 0.65
+    },
+    {
+      "no_of_dependents": 0,
+      "education": "Not Graduate",
+      "self_employed": "No",
+      "income_annum": 2200000,
+      "loan_amount": 7500000,
+      "loan_term": 2,
+      "cibil_score": 333,
+      "residential_assets_value": 3400000,
+      "commercial_assets_value": 600000,
+      "luxury_assets_value": 6200000,
+      "bank_asset_value": 1500000,
+      "actual": 1,
+      "prob_approved": 0.475
+    },
+    {
+      "no_of_dependents": 5,
+      "education": "Not Graduate",
+      "self_employed": "No",
+      "income_annum": 9700000,
+      "loan_amount": 28400000,
+      "loan_term": 4,
+      "cibil_score": 494,
+      "residential_assets_value": 5300000,
+      "commercial_assets_value": 12000000,
+      "luxury_assets_value": 24400000,
+      "bank_asset_value": 10000000,
+      "actual": 0,
+      "prob_approved": 0.725
+    },
+    {
+      "no_of_dependents": 0,
+      "education": "Graduate",
+      "self_employed": "Yes",
+      "income_annum": 200000,
+      "loan_amount": 700000,
+      "loan_term": 10,
+      "cibil_score": 587,
+      "residential_assets_value": 0,
+      "commercial_assets_value": 100000,
+      "luxury_assets_value": 500000,
+      "bank_asset_value": 100000,
+      "actual": 0,
+      "prob_approved": 0.795
+    },
+    {
+      "no_of_dependents": 0,
+      "education": "Graduate",
+      "self_employed": "Yes",
+      "income_annum": 3800000,
+      "loan_amount": 11700000,
+      "loan_term": 2,
+      "cibil_score": 351,
+      "residential_assets_value": 100000,
+      "commercial_assets_value": 6700000,
+      "luxury_assets_value": 12500000,
+      "bank_asset_value": 3100000,
+      "actual": 1,
+      "prob_approved": 0.335
+    },
+    {
+      "no_of_dependents": 0,
+      "education": "Not Graduate",
+      "self_employed": "No",
+      "income_annum": 2000000,
+      "loan_amount": 7000000,
+      "loan_term": 6,
+      "cibil_score": 666,
+      "residential_assets_value": 0,
+      "commercial_assets_value": 1200000,
+      "luxury_assets_value": 4300000,
+      "bank_asset_value": 1400000,
+      "actual": 0,
+      "prob_approved": 0.9
+    },
+    {
+      "no_of_dependents": 1,
+      "education": "Graduate",
+      "self_employed": "No",
+      "income_annum": 900000,
+      "loan_amount": 2600000,
+      "loan_term": 4,
+      "cibil_score": 346,
+      "residential_assets_value": 400000,
+      "commercial_assets_value": 700000,
+      "luxury_assets_value": 2900000,
+      "bank_asset_value": 900000,
+      "actual": 0,
+      "prob_approved": 0.76
+    },
+    {
+      "no_of_dependents": 2,
+      "education": "Not Graduate",
+      "self_employed": "No",
+      "income_annum": 2100000,
+      "loan_amount": 5000000,
+      "loan_term": 4,
+      "cibil_score": 542,
+      "residential_assets_value": 700000,
+      "commercial_assets_value": 600000,
+      "luxury_assets_value": 6600000,
+      "bank_asset_value": 3100000,
+      "actual": 0,
+      "prob_approved": 0.51
+    },
+    {
+      "no_of_dependents": 5,
+      "education": "Not Graduate",
+      "self_employed": "Yes",
+      "income_annum": 5400000,
+      "loan_amount": 16700000,
+      "loan_term": 2,
+      "cibil_score": 354,
+      "residential_assets_value": 1100000,
+      "commercial_assets_value": 4500000,
+      "luxury_assets_value": 19300000,
+      "bank_asset_value": 5200000,
+      "actual": 1,
+      "prob_approved": 0.39
+    }
+  ],
+  "sample_applicants": {
+    "Approved applicant": {
+      "no_of_dependents": 0,
+      "education": "Not Graduate",
+      "self_employed": "No",
+      "income_annum": 3800000,
+      "loan_amount": 13300000,
+      "loan_term": 6,
+      "cibil_score": 655,
+      "residential_assets_value": 9600000,
+      "commercial_assets_value": 0,
+      "luxury_assets_value": 8600000,
+      "bank_asset_value": 2600000,
+      "actual": "Approved",
+      "prob_approved": 0.97
+    },
+    "Rejected applicant": {
+      "no_of_dependents": 4,
+      "education": "Not Graduate",
+      "self_employed": "Yes",
+      "income_annum": 3100000,
+      "loan_amount": 8200000,
+      "loan_term": 18,
+      "cibil_score": 408,
+      "residential_assets_value": 2900000,
+      "commercial_assets_value": 3800000,
+      "luxury_assets_value": 10800000,
+      "bank_asset_value": 3100000,
+      "actual": "Rejected",
+      "prob_approved": 0.0
+    },
+    "Borderline applicant": {
+      "no_of_dependents": 5,
+      "education": "Graduate",
+      "self_employed": "Yes",
+      "income_annum": 2000000,
+      "loan_amount": 6300000,
+      "loan_term": 4,
+      "cibil_score": 366,
+      "residential_assets_value": 5300000,
+      "commercial_assets_value": 2200000,
+      "luxury_assets_value": 5400000,
+      "bank_asset_value": 2800000,
+      "actual": "Approved",
+      "prob_approved": 0.51
+    }
+  }
+}
