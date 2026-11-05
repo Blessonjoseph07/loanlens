@@ -1,0 +1,17 @@
+[theme]
+base = "light"
+primaryColor = "#4F46E5"              # single accent colour (indigo)
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F6FB"
+textColor = "#1F2937"
+font = "sans serif"
+
+[client]
+showErrorDetails = "none"             # never show raw tracebacks to the user
+toolbarMode = "minimal"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
