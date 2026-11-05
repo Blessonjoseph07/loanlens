@@ -5,8 +5,9 @@ Run with:  streamlit run app.py
 Layout
   Sidebar : applicant form (11 fields, enforced ranges) + sample applicants
   Tab 1   : Prediction - result card, SHAP chart, AI explanation, sources, What if?
-  Tab 2   : Model performance - metrics table, confusion matrix, feature importance
-  Tab 3   : About - problem, dataset, ML -> GenAI flow diagram, limitations
+  Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection
+  Tab 3   : Model performance - metrics table, confusion matrix, feature importance
+  Tab 4   : About - problem, dataset, ML -> GenAI flow diagram, limitations
 """
 from __future__ import annotations
 
@@ -19,9 +20,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from loanlens.counterfactual import apply_plan, what_would_it_take
 from loanlens.data import (FEATURES, LABELS, RANGES, RUPEE_FIELDS, ValidationError,
                            format_inr, format_value)
-from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse
+from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, explain_plan, plan_query
 from loanlens.predict import Predictor
 from loanlens.rag import NO_SOURCE_MSG, Retriever, THRESHOLD, build_query, load_embedder
 
@@ -161,6 +163,15 @@ def on_submit():
     st.session_state["sample_loaded"] = None
 
 
+def try_plan(applicant: dict, plan: dict):
+    """Load a "What would it take?" plan into the form and predict it."""
+    changed = apply_plan(applicant, plan)
+    set_form(changed)
+    st.session_state["pending_applicant"] = changed
+    st.session_state["run_predict"] = True
+    st.session_state["sample_loaded"] = None
+
+
 if "in_cibil_score" not in st.session_state:
     set_form(DEFAULT)
 
@@ -255,6 +266,8 @@ if st.session_state.pop("run_predict", False):
         result, error = run_analysis(applicant)
     st.session_state["result"], st.session_state["error"] = result, error
     st.session_state.pop("whatif", None)
+    for k in ("cf", "cf_expl"):      # plans belong to the previous applicant
+        st.session_state.pop(k, None)
     if result:   # reset the What-if sliders to this applicant
         st.session_state["wi_cibil"] = result["prediction"]["applicant"]["cibil_score"]
         st.session_state["wi_term"] = result["prediction"]["applicant"]["loan_term"]
@@ -371,7 +384,7 @@ def explanation_block(result: dict, key: str):
 # --------------------------------------------------------------------------
 # Tabs
 # --------------------------------------------------------------------------
-tab_pred, tab_perf, tab_about = st.tabs(["Prediction", "Model performance", "About"])
+tab_pred, tab_plan, tab_perf, tab_about = st.tabs(["Prediction", "Plan", "Model performance", "About"])
 
 with tab_pred:
     if model_error:
@@ -451,6 +464,57 @@ with tab_pred:
             st.plotly_chart(shap_chart(new["factors"]), width="stretch",
                             config={"displayModeBar": False}, key="shap_whatif")
             explanation_block(wi, "whatif")
+
+with tab_plan:
+    result = st.session_state.get("result")
+    if not result:
+        st.markdown("""<div class="ll-card ll-empty"><b>Run a prediction first</b><br>
+          The Plan tab searches for the smallest realistic changes that would turn this applicant into a
+          clear approval (probability ≥ 60%).</div>""", unsafe_allow_html=True)
+    else:
+        pred = result["prediction"]
+        if "cf" not in st.session_state:
+            with st.spinner("Searching a few thousand what-if variations..."):
+                st.session_state["cf"] = what_would_it_take(predictor.model, pred["applicant"])
+        cf = st.session_state["cf"]
+        st.markdown("#### What would it take?")
+        st.caption("Every combination of the inputs a person can actually change (CIBIL score, loan amount, "
+                   "income, loan term, bank savings) is scored by the model; the cheapest plans that reach a "
+                   "60% approval probability are shown. Effort scale: 100 CIBIL points ≈ 20% smaller loan ≈ "
+                   "20% more income ≈ 5 years of term ≈ savings worth 10% of the loan.")
+        if cf["already"]:
+            st.markdown(f"""<div class="ll-card"><h4>Nothing to change</h4>
+              <span class="ll-badge" style="background:{GREEN};font-size:1.3rem">Clear approval</span>
+              <div class="ll-meta">This applicant is already at <b>{cf['current']:.1%}</b>, above the
+              {cf['target']:.0%} target.</div></div>""", unsafe_allow_html=True)
+        elif not cf["plans"]:
+            st.warning("No combination of realistic changes reaches a 60% approval probability for this applicant.")
+        else:
+            cols = st.columns(min(len(cf["plans"]), 2), gap="large")
+            for i, plan in enumerate(cf["plans"]):
+                with cols[i % len(cols)]:
+                    steps = "".join(f"<li>{html.escape(s['text'])}</li>" for s in plan["changes"])
+                    st.markdown(f"""<div class="ll-card"><h4>Plan {i + 1} · effort {plan['effort']:.1f}</h4>
+                      <ul style="margin:.2rem 0 .6rem 1.1rem;padding:0">{steps}</ul>
+                      <div class="ll-meta">Approval probability <b>{cf['current']:.1%}</b> →
+                      <b style="color:{GREEN}">{plan['probability']:.1%}</b></div></div>""",
+                                unsafe_allow_html=True)
+                    st.button("Try this plan", key=f"try_plan_{i}", on_click=try_plan,
+                              args=(pred["applicant"], plan))
+            if all(any(s["feature"] == "cibil_score" for s in p["changes"]) for p in cf["plans"]):
+                st.info(f"Every plan needs a higher CIBIL score. Even with a 60% smaller loan, 60% more income, "
+                        f"30% extra savings and the best loan term, this model only reaches "
+                        f"**{cf['best_without_cibil']:.1%}** without touching CIBIL — another sign of how "
+                        "much it leans on that one number.")
+
+            if st.button("Explain plan 1 with AI", type="primary"):
+                with st.spinner("Retrieving sources and asking llama3.2..."):
+                    q = plan_query(cf["plans"][0])
+                    srcs = retriever.search(q) if retriever else []
+                    st.session_state["cf_expl"] = {"query": q, "sources": srcs,
+                                                   "explanation": explain_plan(pred["applicant"], cf, srcs)}
+            if st.session_state.get("cf_expl"):
+                explanation_block(st.session_state["cf_expl"], "plan")
 
 with tab_perf:
     if not METRICS:

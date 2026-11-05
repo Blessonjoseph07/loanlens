@@ -94,6 +94,14 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
 5. **Fallback** - if Ollama is not running, the prediction and passages are still shown with
    *"Explanation unavailable: Ollama is not running"*.
 
+## Extra features
+
+- **What would it take? (Plan tab)** - `loanlens/counterfactual.py` scores a few thousand variations of the
+  inputs a person can actually change (CIBIL, loan amount, income, term, bank savings) in one batch and
+  returns the cheapest plans that reach a 60% approval probability, ranked on a shared effort scale.
+  It also reports the best probability reachable *without* touching CIBIL. "Try this plan" loads a plan
+  into the form; "Explain plan 1 with AI" retrieves RBI/CIBIL passages and asks llama3.2 for cited steps.
+
 ## Tests
 
 | # | Test | Expected |

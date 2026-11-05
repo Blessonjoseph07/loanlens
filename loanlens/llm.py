@@ -71,10 +71,11 @@ def make_client(host: str = OLLAMA_HOST):
     return ollama.Client(host=host, timeout=180)
 
 
-def _chat(client, user_message: str) -> str:
+def _chat(client, user_message: str, system: str = SYSTEM_PROMPT, history: list[dict] | None = None) -> str:
+    """One chat call. `history` is earlier {"role", "content"} turns (used by the follow-up chat)."""
     response = client.chat(
         model=OLLAMA_MODEL,
-        messages=[{"role": "system", "content": SYSTEM_PROMPT},
+        messages=[{"role": "system", "content": system}, *(history or []),
                   {"role": "user", "content": user_message}],
         options={"temperature": TEMPERATURE},
     )
@@ -104,6 +105,44 @@ def explain(applicant: dict, prediction: dict, sources: list[dict], client=None)
         if "not found" in str(exc).lower():           # server up, but model missing
             notice += f" (model '{OLLAMA_MODEL}' not found - run: ollama pull {OLLAMA_MODEL})"
         return {"status": "ollama_unavailable", "text": "", "notice": notice, "attempts": 0}
+
+
+PLAN_PROMPT = """You are a credit-literacy tutor. A loan model rejected an applicant, and a search found
+the smallest changes that would make the model approve them (PLAN).
+Use ONLY the facts in APPLICANT, PLAN and SOURCES.
+Rules:
+- Start with the first plan in one sentence.
+- Give 2-3 practical, general steps for that change, each backed by a source cited as [1], [2] or [3].
+- Mention honestly that the plan only moves this model's estimate; a real lender decides differently.
+- Do not promise approval, do not recommend a lender or product, and do not give personal financial advice.
+- Keep it under 140 words."""
+
+
+def plan_query(plan: dict) -> str:
+    """Retrieval query for a plan, e.g. 'how to improve CIBIL score for loan approval'."""
+    names = [c["name"] for c in plan["changes"]]
+    return "how to improve " + " and ".join(names) + " to get a loan approved"
+
+
+def explain_plan(applicant: dict, cf: dict, sources: list[dict], client=None) -> dict:
+    """LLM narrative for the "What would it take?" plans (same safety rules as explain())."""
+    if not cf.get("plans"):
+        return {"status": "no_plan", "text": "", "notice": "No plan to explain.", "attempts": 0}
+    if not sources:
+        return {"status": "no_sources", "text": "", "notice": NO_SOURCE_MSG, "attempts": 0}
+    lines = ["APPLICANT"] + [f"- {LABELS[k]}: {format_value(k, v)}" for k, v in applicant.items()]
+    lines += ["", "PLAN", f"- Current probability of approval: {cf['current']:.0%}, target {cf['target']:.0%}"]
+    lines += [f"{i}. {p['summary']} -> probability {p['probability']:.0%}" for i, p in enumerate(cf["plans"], 1)]
+    lines += ["", "SOURCES"] + [f"[{i}] {s['title']}: {s['text']}" for i, s in enumerate(sources, 1)]
+    try:
+        client = client or make_client()
+        for attempt in (1, 2):
+            answer = _chat(client, "\n".join(lines), system=PLAN_PROMPT)
+            if CITATION.search(answer):
+                return {"status": "ok", "text": answer, "notice": "", "attempts": attempt}
+        return {"status": "ungrounded", "text": "", "notice": UNGROUNDED_MSG, "attempts": 2}
+    except Exception:
+        return {"status": "ollama_unavailable", "text": "", "notice": OLLAMA_DOWN_MSG, "attempts": 0}
 
 
 def analyse(applicant: dict, predictor, retriever, client=None) -> dict:
