@@ -4,7 +4,7 @@ Run with:  streamlit run app.py
 
 Layout
   Sidebar : applicant form (11 fields, enforced ranges) + sample applicants
-  Tab 1   : Prediction - result card, SHAP chart, AI explanation, sources, listen/translate,
+  Tab 1   : Prediction - result card, how-sure meter, SHAP chart, AI explanation, sources, listen/translate,
             follow-up chat, What if?
   Tab 2   : Plan - "What would it take?" smallest changes that flip a rejection,
             and the credit-score time machine (habits simulated month by month)
@@ -31,6 +31,7 @@ from loanlens.data import (FEATURES, LABELS, RANGES, RUPEE_FIELDS, ValidationErr
 from loanlens.llm import OLLAMA_HOST, OLLAMA_MODEL, analyse, chat_followup, ollama_reachable, translate, explain_plan, plan_query
 from loanlens.predict import Predictor
 from loanlens.voice import LANGUAGES, plain_summary, speak_html
+from loanlens.uncertainty import FamiliarityChecker, assess
 from loanlens.timeline import HABITS, first_month, simulate
 from loanlens.rag import NO_SOURCE_MSG, Retriever, THRESHOLD, build_query, load_embedder
 
@@ -95,6 +96,11 @@ def get_retriever():
 def load_metrics():
     path = ROOT / "metrics.json"
     return json.loads(path.read_text()) if path.exists() else None
+
+
+@st.cache_resource(show_spinner="Learning what typical applicants look like...")
+def get_checker():
+    return FamiliarityChecker(get_predictor().model, ROOT / "loan_approval_dataset.csv")
 
 
 @st.cache_resource(show_spinner="Auditing the model on the test set...")
@@ -425,6 +431,23 @@ with tab_pred:
         with c2:
             st.plotly_chart(gauge(pred["probability"]), width="stretch",
                             config={"displayModeBar": False}, key="gauge_main")
+
+        sure, sure_error = safe(lambda: assess(predictor.model, get_checker(), pred["applicant"], pred["band"]))
+        if sure:
+            colours = {"high": ("ok", "High"), "medium": ("warn", "Medium"), "low": ("off", "Low")}
+            pill, word = colours[sure["level"]]
+            why = "; ".join(sure["reasons"]) or "the trees agree, the result is clear and the applicant looks typical"
+            unusual = "".join(f"<li>{html.escape(u['name'])}: <b>{html.escape(u['value'])}</b> "
+                              f"<span class='ll-small'>(usual training range {html.escape(u['range'])})</span></li>"
+                              for u in sure["unusual"])
+            st.markdown(f"""<div class="ll-card"><h4>How sure is it?</h4>
+              <span class="ll-pill {pill}" style="margin-left:0;font-size:.9rem">Certainty: {word}</span>
+              <div class="ll-meta"><b>{sure['approve_votes']}</b> of {sure['n_trees']} trees vote approve
+              ({sure['agreement']:.0%} agree, spread {sure['spread']:.2f}) ·
+              distance to the 5 nearest training applicants <b>{sure['distance']:.2f}</b>
+              (unusual above {sure['threshold']:.2f})<br>Why: {html.escape(why)}.
+              {f'<ul style="margin:.4rem 0 0 1.1rem;padding:0">{unusual}</ul>' if unusual else ''}</div>
+            </div>""", unsafe_allow_html=True)
 
         st.markdown("#### Top 3 factors for this applicant")
         c3, c4 = st.columns([1.6, 1], gap="large")

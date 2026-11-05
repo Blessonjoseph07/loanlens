@@ -118,6 +118,11 @@ The first run of `build_index.py` downloads the `all-MiniLM-L6-v2` embedder (~90
   Not Graduate and self-employed vs not on approval rate, accuracy, true- and false-positive rate, plus a flip
   test (change only that attribute and count flipped decisions). Both attributes currently pass; the
   write-up points out the one number worth watching (false-positive rate for non-graduates).
+- **How sure is it? (Prediction tab)** - `loanlens/uncertainty.py` adds two signals to the probability:
+  how many of the 200 trees agree, and whether the applicant looks like the training data (1st-99th
+  percentile ranges, loan/income and assets/loan ratios, and the distance to the 5 nearest training
+  applicants in the model's scaled space). The documented failure case - wrongly approved at 90% - is
+  flagged *medium* because its assets-to-loan ratio is outside the training range.
 
 ## Tests
 
